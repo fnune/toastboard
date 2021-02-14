@@ -140,7 +140,7 @@ The serial communication output is interesting:
 rnn||bll
 ```
 
-It seems to clear and rewrite when the LED blinks.
+It seems to then print some more `rnn||bll` lines, then clears itself and restarts when the LED blinks.
 
 ---
 
@@ -154,6 +154,38 @@ for (int i = 10; i >= 0; i--) {
 ```
 
 I need to read into the `printf` function. Maybe there's a decoding problem, or the baud rate is wrong. Time to continue reading the docs!
+
+A `make monitor` target is included. Running it produces serial output at the same rate as the `rnn||bll` before but this time it's completely readable, and matches what's in the source code (go figure). I'm wondering how I could produce the same results using `minicom`. There's a `74880` number in the output of `make monitor` that looks suspiciously like a baud rate. I was connecting with `115200`.
+
+I thought the baud rate was the problem, but running `minicom -b 74880 -o -D /dev/ttyUSB0` still gave me the `rnn||bll` output.
+
+Apparently, you can specify baud rates like this: `make flash ESPBAUD=9600`, so I'm trying to see if the `minicom` output changes with this. Flashing at `9600` is so slow! Some minutes later, I run `minicom -b 9600 -o -D /dev/ttyUSB0`, and I get slightly different results, but still gibberish. More or less this:
+
+```
+ɏɏɏɏ
+ɏɏɏɏɏɏɏɏɏɏɏɏ
+GGq4O.
+```
+
+Time to read the source code to figure out what's up. The output of `make monitor` includes some interesting information:
+
+- The script that runs is `idf_monitor`, and its source code is in `$IDF_PATH/tools/idf_monitor.py`.
+- I can modify that file and change the output of `make monitor`.
+- This helped me find out that the default baud rate is `74880`.
+
+Running `screen /dev/ttyUSB0 74880` produces gibberish, too:
+
+```
+GGq4O.���ɏ�ɏQ�0�~?�4�!�S{�O�:9�O�:9�COAa�$\���S��4�MS��F�����.P�r|Vz4E^V8���M�0�zx��#A�AVZ��#�pRZR�rRRZ�E��&��,CORRV��'K�EEZG�Ň�EERGG���MK�EERG��'K�EEZG��#�G�����Gq���4O.�ɏ�ɏ��ɏ�ɏ��ɏ�ɏ��ɏ�ɏ��ɏ�ɏQ�0�~?�4�!�S{�O�:9�O�:9�COAa�$L���S��4�MS��F�����.P�r|Vz4E^V8���M�0�zx��#A�AVZ��#�pRZR�rRRZ�E��&��,CORRV��'K�EEZG�Ň�EERGG���MK�EER
+```
+
+Rebuilding with baud rate 115200 makes `screen /dev/ttyUSB0 115200` produce output more similar to the original output from `minicom`:
+
+```
+GGq4O.���ɏ�ɏQ�0�~?�4�!�S{�O�:9�O�:9�COAa�$\���S��4�MS��F�����.P�r|Vz4E^V8���M�0�zx��#A�AVZ��#�pRZR�rRRZ�E��&��,CORRV��'K�EEZG�Ň�EERGG���MK�EERG��'K�EEZG��#�G�����Gq���4O.�ɏ�ɏ��ɏ�ɏ��ɏ�ɏ��ɏ�ɏ��ɏ�ɏQ�0�~?�4�!�S{�O�:9�O�:9�COAa�$L���S��4�MS��F�����.P�r|Vz4E^V8���M�0�zx��#A�AVZ��#�pRZR�rRRZ�E��&��,CORRV��'K�EEZG�Ň�EERGG���MK�EER��r�b�nn�lnnl��r�nn�||�bbl��r�b�nn�lnn��r�nn�||�bbl��r�b�nn�lnn��r�nn�||�bbl��r�b�nn�lnn��r�nn�||�bbl��r�b�nn�lnnl�r�nn�||�bbl��r�b�nn�lnn�r�nn�||�bbl
+```
+
+At this point I'm going to give up and just use `make monitor`, and figure this out later with the help of someone more experienced. The project runs and I can move on to writing some application code.
 
 ### A foray into Linux specifics
 
