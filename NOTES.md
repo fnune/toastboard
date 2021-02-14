@@ -2,7 +2,9 @@
 
 I'm a web developer, so this is all new to me. Here are my notes.
 
-## Toolchain
+## ESP8266_RTOS_SDK
+
+### Toolchain
 
 Documentation link: https://docs.espressif.com/projects/esp8266-rtos-sdk/en/latest/get-started/linux-setup.html
 
@@ -47,7 +49,7 @@ The "supported" IDE is Eclipse, but the docs start with this:
 
 That means I'll get introduced to interacting with the project via command line, so that's good.
 
-## Installing ESP8266_RTOS_SDK
+### Installing ESP8266_RTOS_SDK
 
 Documentation link: https://docs.espressif.com/projects/esp8266-rtos-sdk/en/latest/get-started/index.html#get-esp8266-rtos-sdk
 
@@ -58,3 +60,31 @@ Once again, the documentation suggests I just dump the whole RTOS into `~/esp`. 
 I suppose this means I need `export IDF_PATH=~/esp/ESP8266_RTOS_SDK` in my `.zshrc`.
 
 Next up, I'm installing some Python packages globally. I think if I wanted to make these builds reproducible I'd have to go through a lot more steps than those described in the documentation. Or maybe these tools just don't change so much?
+
+### Running the `hello_world` example project
+
+At first, I was surprised that `make menuconfig` is what I'm supposed to run here, because that target is not in the `Makefile`, but these are its contents:
+
+```
+PROJECT_NAME := hello-world
+
+include $(IDF_PATH)/make/project.mk
+```
+
+I didn't know you can include `Makefile`s from other `Makefile`s.
+
+---
+
+Running `make menuconfig` fails because it expects `python` in `PATH`, but I have `python3`. I also installed the required libraries using `python3`, so I'm going to install `python` (which in Ubuntu means 2.7) and reinstall the dependencies using `python`. I think on Arch `python` points to Python 3.
+
+After doing that, I get:
+
+```
+pkg_resources cannot be imported probably because the pip package is not installed and/or using a legacy Python interpreter. Please refer to the Get Started section of the ESP-IDF Programming Guide for setting up the required packages.
+```
+
+Apparently `pip` points to `python3-pip` in my system, so now I have to find out whether this works after installing `python2-pip` (I'm guessing that's the name) or if I do need everything on Python 3 and I need to solve the `python` vs `python3` name problem in some other way.
+
+---
+
+I ended up using `alias python=python3` and running `sudo apt install python-is-python3` because the SDK depends on `/usr/bin/env python`, making my alias useless. I guess they should have just fixed that to `/usr/bin/env python3`.
