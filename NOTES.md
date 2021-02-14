@@ -45,7 +45,7 @@ Some of these tools are already available in my `PATH` but not specifically for 
 
 The "supported" IDE is Eclipse, but the docs start with this:
 
-> We suggest building a project from the command line first, to get a feel for how that process works. You also need to use the command line to configure your ESP8266_RTOS_SDK project (via make menuconfig), this is not currently supported inside Eclipse.
+> We suggest building a project from the command line first, to get a feel for how that process works. You also need to use the command line to configure your ESP8266_RTOS_SDK project (via `make menuconfig`), this is not currently supported inside Eclipse.
 
 That means I'll get introduced to interacting with the project via command line, so that's good.
 
@@ -88,3 +88,119 @@ Apparently `pip` points to `python3-pip` in my system, so now I have to find out
 ---
 
 I ended up using `alias python=python3` and running `sudo apt install python-is-python3` because the SDK depends on `/usr/bin/env python`, making my alias useless. I guess they should have just fixed that to `/usr/bin/env python3`.
+
+---
+
+The docs ask me to do this:
+
+> You are almost there. To be able to proceed further, connect ESP8266 board to PC, check under what serial port the board is visible and verify if serial communication works. Note the port number, as it will be required in the next step.
+
+As if I knew how to do that! Time to DuckDuckGo.
+
+It seems like the Internet has settled on this command:
+
+```bash
+~/Development/toastboard [2] => sudo dmesg | grep tty
+[    0.183219] printk: console [tty0] enabled
+[    0.784336] 0000:00:16.3: ttyS4 at I/O 0x3060 (irq = 19, base_baud = 115200) is a 16550A
+[  594.954203] usb 1-1: cp210x converter now attached to ttyUSB0
+[  679.763000] cp210x ttyUSB0: cp210x converter now disconnected from ttyUSB0
+```
+
+At first, I thought my device was connected to `/dev/ttyS4` because `sudo dmesg | grep tty` showed it alongside a baud rate, but perhaps that's the default for the port? As it turns out, my device is on `/dev/ttyUSB0`.
+
+Part one done: my device is on `/dev/ttyUSB0`.
+
+As for verifying that serial communication works: I've read mentions of `minicom`, so I'm going to try it out. After some configuration, I get a dot each second, which is the serial output a previous Arduino program I wrote outputs. It's working! Here's the command I ran:
+
+```bash
+sudo minicom -b 115200 -o -D /dev/ttyUSB0
+```
+
+I run `make menuconfig`. The serial port is set to `/dev/ttyUSB0`. The generated configuration looks really specific to my laptop, so I'm going to put it in `.gitignore`. It seems like other developers would have to just run `make menuconfig` on their machines, too.
+
+The output of `make flash` looked promising until I got a `Permission denied: /dev/ttyUSB0` error. I suppose I can run `sudo make flash`, but that seems a bit excessive.
+
+```
+~/Development/toastboard/hello_world [2] => ls -l /dev/ttyUSB0
+crw-rw---- 1 root dialout 188, 0 Feb 14 21:09 /dev/ttyUSB0
+```
+
+If I add myself to the `dialout` group, I should have access to my device. Thanks SO.
+
+```
+sudo usermod -a -G dialout $USER
+```
+
+After a reboot (surprisingly, logging out and then logging back in didn't work), I could flash the RTOS onto the device. It's now blinking its LED very infrequently.
+
+The serial communication output is interesting:
+
+```
+rnn||bll
+```
+
+It seems to clear and rewrite when the LED blinks.
+
+---
+
+Reading the code in [`hello_world_main.c`](hello_world/main/hello_world_main.c) I can't find much correlation between what I get through the serial port and the code. Perhaps only that there's a loop that resets the device every ten seconds, and that's when the LED blinks:
+
+```c
+for (int i = 10; i >= 0; i--) {
+    printf("Restarting in %d seconds...\n", i);
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+}
+```
+
+I need to read into the `printf` function. Maybe there's a decoding problem, or the baud rate is wrong. Time to continue reading the docs!
+
+### A foray into Linux specifics
+
+Here's what I know about `dmesg`: it prints logs from the kernel. And here's all my loose bits of unchecked knowledge about `tty`:
+
+- It stands for TeleTypewriter.
+- In Linux, I can go to a different `tty` by using `CTRL+ALT+F#`.
+- Some of the `#`s are used by specific processes. In my case, `CTRL+ALT+F1` takes me to GDM (which shows my log-in screen), and `CTRL+ALT+F2` takes me back to my current Xorg session.
+- I've used `CTRL+ALT+F#` with numbers other than 1 and 2 to get me out of problems with me Xorg session.
+- I suppose that means processes are tied to `tty`s, or `tty`s are somehow pointers to processes.
+
+Time to strengthen this knowledge.
+
+```bash
+man tty
+```
+
+> `tty` - print the file name of the terminal connected to standard input
+
+```bash
+~/Development/toastboard/hello_world => tty
+/dev/pts/3
+```
+
+I have three terminals open, and that one was number 3 apparently.
+
+A TTY is transitively [a software emulation of a TeleTypewriter](https://www.howtogeek.com/428174/what-is-a-tty-on-linux-and-how-to-use-the-tty-command/), or a pseudoterminal. In Linux, there's the concept of a pseudoterminal master and pseudoterminal slaves.
+
+> The file /dev/ptmx is a character file with major number 5 and minor number 2, usually of mode 0666 and owner.group of root.root. It is used to create a pseudoterminal master and slave pair. When a process opens /dev/ptmx, it gets a file descriptor for a pseudoterminal master (PTM), and a pseudoterminal slave (PTS) device is created in the /dev/pts directory. Each file descriptor obtained by opening /dev/ptmx is an independent PTM with its own associated PTS, whose path can be found by passing the descriptor to ptsname(3).
+
+I suppose this is what terminal emulators such as Kitty do when they open: they get assigned a file under `/dev/pts`. It must also be what `tmux` does when I open a new pane or window.
+
+### Playing with `minicom`
+
+On a first attempt to verify that serial communication to my development board works, I did this:
+
+```
+ ~/Development/toastboard/hello_world => minicom -p /dev/ttyS4
+minicom: argument to -p must be a pty
+```
+
+A `pty` is a pseudoterminal. I guess if I open a new terminal, it'll be assigned `/dev/pts/4` and then I can communicate to it? I'm curious to try it out.
+
+Open a new terminal and then on terminal `/dev/pts/3`:
+
+```
+minicom -p /dev/pts/4
+```
+
+Type some stuff... and it appears on my newest terminal! Cool! Trying to type on `/dev/pts/4` produces the same characters on `/dev/pts/3`, but some get dropped. I'm curious to find out why, but let's get back to the main course.
