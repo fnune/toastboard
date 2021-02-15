@@ -185,7 +185,7 @@ Rebuilding with baud rate 115200 makes `screen /dev/ttyUSB0 115200` produce outp
 GGq4O.���ɏ�ɏQ�0�~?�4�!�S{�O�:9�O�:9�COAa�$\���S��4�MS��F�����.P�r|Vz4E^V8���M�0�zx��#A�AVZ��#�pRZR�rRRZ�E��&��,CORRV��'K�EEZG�Ň�EERGG���MK�EERG��'K�EEZG��#�G�����Gq���4O.�ɏ�ɏ��ɏ�ɏ��ɏ�ɏ��ɏ�ɏ��ɏ�ɏQ�0�~?�4�!�S{�O�:9�O�:9�COAa�$L���S��4�MS��F�����.P�r|Vz4E^V8���M�0�zx��#A�AVZ��#�pRZR�rRRZ�E��&��,CORRV��'K�EEZG�Ň�EERGG���MK�EER��r�b�nn�lnnl��r�nn�||�bbl��r�b�nn�lnn��r�nn�||�bbl��r�b�nn�lnn��r�nn�||�bbl��r�b�nn�lnn��r�nn�||�bbl��r�b�nn�lnnl�r�nn�||�bbl��r�b�nn�lnn�r�nn�||�bbl
 ```
 
-At this point I'm going to give up and just use `make monitor`, and figure this out later with the help of someone more experienced. The project runs and I can move on to writing some application code.
+At this point I'm going to give up and just use `make monitor`, and figure this out later with the help of someone more experienced.
 
 ### A foray into Linux specifics
 
@@ -236,3 +236,9 @@ minicom -p /dev/pts/4
 ```
 
 Type some stuff... and it appears on my newest terminal! Cool! Trying to type on `/dev/pts/4` produces the same characters on `/dev/pts/3`, but some get dropped. I'm curious to find out why, but let's get back to the main course.
+
+## The Memfault SDK
+
+Documentation link: https://docs.memfault.com/docs/embedded/esp8266-rtos-sdk-guide/
+
+I'm starting by getting some application code in place. It's just going to be an HTTP server with simple routes. Then, I'll try to integrate the Memfault SDK on top.
