@@ -1,0 +1,5 @@
+config MEMFAULT_API_KEY
+    string "Your Memfault project API key"
+    default "YOUR_PROJECT_API_KEY"
+    help
+        Get it from https://app.memfault.com/organizations/memfault/projects/toastboard/settings
