@@ -278,3 +278,66 @@ CONFIG_USING_ESP_CONSOLE=y
 ```
 
 Et voila! It has built! Time to get it flashed onto the board.
+
+### Reboot loop after integrating the SDK
+
+There are some useful logs:
+
+```
+I (492) system_api: Base MAC address is not set, read default base MAC address from EFUSE
+Guru Meditation Error: Core  0 panic'ed (LoadProhibited). Exception was unhandled.
+```
+
+And:
+
+```
+E (463) mflt: Coredumps enabled but no storage partition found!
+```
+
+I'm not sure which one is causing the reboots, so I'm going to fix the MAC address problem first. It should be a matter of using a different method that doesn't get the "base" MAC address but the one from EFUSE.
+
+---
+
+I gave up trying to fix the MAC address problem because no matter what I picked, it would crash. I hereby name this device `"the-one-and-only"`.
+
+We're left with:
+
+```
+E (463) mflt: Coredumps enabled but no storage partition found!
+```
+
+It's a bit weird because I'm still not at the step where I can [add coredumps integration](https://docs.memfault.com/docs/embedded/coredumps/).
+
+Either way: I can print the partition table of the device with `make partition_table`:
+
+```
+# Espressif ESP32 Partition Table
+# Name,   Type, SubType, Offset,  Size, Flags
+nvs,      data, nvs,     0x9000,  24K,
+phy_init, data, phy,     0xf000,  4K,
+factory,  app,  factory, 0x10000, 960K,
+```
+
+[My chip](https://www.amazon.de/-/en/gp/product/B08BTXCZC1/ref=ppx_yo_dt_b_search_asin_title?ie=UTF8&psc=1) supposedly has 4MB of storage, and that's roughly 1MB in the partition table, so I guess I could flash something else onto it. For now, I'm going to go with this.
+
+Now I need to:
+
+1. Identify which of those is the storage partition.
+2. Figure out how to tell Memfault to use that.
+
+The [ESP8266_RTOS_SDK documentation on partition tables](https://docs.espressif.com/projects/esp8266-rtos-sdk/en/release-v3.3/api-guides/partition-tables.html?highlight=storage) says NVS stands for non-volatile storage. I guess that's what we want. That means I want the partition starting at `0x9000` that's 24K in size.
+
+I'm going to look for a way to do (2) in `make menuconfig`.
+
+The Memfault-specific configuration has an option "Enable saving a coredump to flash storage (OTA slot)". The other cohice is "User defined coredump storage region". I guess I could pick the second, but there's a default partition table that includes an OTA slot from the SDK, so I'm going to use that instead of the NVS partition.
+
+The configuration changed like so:
+
+```diff
+- CONFIG_PARTITION_TABLE_SINGLE_APP=y
++ # CONFIG_PARTITION_TABLE_SINGLE_APP is not set
+- # CONFIG_PARTITION_TABLE_TWO_OTA is not set
++ CONFIG_PARTITION_TABLE_TWO_OTA=y
+```
+
+I'm going to add that to the defaults file because it seems critical to the project. I also changed how I'm getting my WiFi SSID and password. Time to flash it again!
