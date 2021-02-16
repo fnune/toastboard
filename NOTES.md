@@ -242,3 +242,39 @@ Type some stuff... and it appears on my newest terminal! Cool! Trying to type on
 Documentation link: https://docs.memfault.com/docs/embedded/esp8266-rtos-sdk-guide/
 
 I'm starting by getting some application code in place. It's just going to be an HTTP server with simple routes. Then, I'll try to integrate the Memfault SDK on top.
+
+Ran into this while compiling:
+
+```
+In file included from /home/fausto/Development/toastboard/src/components/memfault_port/memfault-firmware-sdk/components/include/memfault/components.h:20,
+                 from /home/fausto/Development/toastboard/src/main/main.c:17:
+/home/fausto/Development/toastboard/src/components/memfault_port/memfault-firmware-sdk/components/include/memfault/config.h:30:39: fatal error: memfault_platform_config.h: No such file or directory
+ #define MEMFAULT_PLATFORM_CONFIG_FILE "memfault_platform_config.h"
+                                       ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+```
+
+I later found this from the `CHANGES.md` file in the Memfault SDK:
+
+```md
+- You must create the file `memfault_platform_config.h` and add it to your
+  include path. This file can be used in place of compiler defines to tune the
+  SDK configurations settings.
+```
+
+After solving that by creating `src/main/include/memfault_platform_config.h`, there was another missing header file:
+
+```
+/home/fausto/Development/toastboard/src/components/memfault_port/memfault-firmware-sdk/ports/esp8266_sdk/memfault/esp_reboot_tracking.c:14:10: fatal error: internal/esp_system_internal.h: No such file or directory
+ #include "internal/esp_system_internal.h"
+          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+```
+
+I got a bunch of compiler errors because I was on the `master` branch of the SDK and the Memfault integration supports only v3.3. The changes from `master` to v3.3 are significant in the HTTP server example, so I'm updating my application code.
+
+The next compiler error was a missing header file `esp_console.h` expected in `memfault_cli.c`. I could solve it by adding this to `src/sdkconfig`:
+
+```
+CONFIG_USING_ESP_CONSOLE=y
+```
+
+Et voila! It has built! Time to get it flashed onto the board.
