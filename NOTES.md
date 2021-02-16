@@ -357,3 +357,23 @@ To begin debugging the issue, I removed the `memfault_platform_boot()` call. Now
 I'm going to hardcode the hardware version instead of trying to get it from `chip_info`, since I'm suspicious of my C.
 
 After removing that, the device is stable! I just don't know C.
+
+### No data
+
+As I don't know how to set up a periodic task on FreeRTOS, I didn't add the `   memfault_esp_port_http_client_post_data()` line.
+
+My device exposes an HTTP server, so I decided to create a `GET /upload` route that will upload anything saved up to Memfault.
+
+I open `192.168.0.24:80/upload` on a browser and...
+
+```
+D (30030) mflt: Posting Memfault Data
+D (30339) mflt: Posting Memfault Data Complete!
+I (30342) mflt: Result: 0
+```
+
+My device now exists on Memfault!
+
+```
+the-one-and-only	1.0.0+4bb166	ESP8266EX_CH340C	a minute ago
+```

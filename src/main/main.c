@@ -17,6 +17,7 @@
 #include <esp_http_server.h>
 
 #include "memfault/components.h"
+#include "memfault/esp8266_port/http_client.h"
 
 /* A simple example that demonstrates how to create GET and POST
  * handlers for the web server.
@@ -32,28 +33,21 @@
 static const char *TAG="TOASTBOARD";
 
 /* An HTTP GET handler */
-esp_err_t hello_get_handler(httpd_req_t *req)
+esp_err_t upload_get_handler(httpd_req_t *req)
 {
-    /* Send response with custom headers and body set as the
-     * string passed in user context*/
+    memfault_esp_port_http_client_post_data();
+
     const char* resp_str = (const char*) req->user_ctx;
     httpd_resp_send(req, resp_str, strlen(resp_str));
 
-    /* After sending the HTTP response the old HTTP request
-     * headers are lost. Check if HTTP request headers can be read now. */
-    if (httpd_req_get_hdr_value_len(req, "Host") == 0) {
-        ESP_LOGI(TAG, "Request headers lost");
-    }
     return ESP_OK;
 }
 
-httpd_uri_t hello = {
-    .uri       = "/hello",
+httpd_uri_t upload = {
+    .uri       = "/upload",
     .method    = HTTP_GET,
-    .handler   = hello_get_handler,
-    /* Let's pass response string in user
-     * context to demonstrate it's usage */
-    .user_ctx  = "Hello World!"
+    .handler   = upload_get_handler,
+    .user_ctx  = "Uploading stuff to Memfault!"
 };
 
 httpd_handle_t start_webserver(void)
@@ -66,7 +60,7 @@ httpd_handle_t start_webserver(void)
     if (httpd_start(&server, &config) == ESP_OK) {
         // Set URI handlers
         ESP_LOGI(TAG, "Registering URI handlers");
-        httpd_register_uri_handler(server, &hello);
+        httpd_register_uri_handler(server, &upload);
         return server;
     }
 
