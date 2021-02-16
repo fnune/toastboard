@@ -341,3 +341,19 @@ The configuration changed like so:
 ```
 
 I'm going to add that to the defaults file because it seems critical to the project. I also changed how I'm getting my WiFi SSID and password. Time to flash it again!
+
+### The reboot loop continues
+
+But now it's different! There are no more errors from Memfault, and I get a reassuring message:
+
+```
+I (499) mflt: Coredumps will be saved at 0x110000 (983040B)
+```
+
+This means my new partition table is being used correctly.
+
+To begin debugging the issue, I removed the `memfault_platform_boot()` call. Now, the device works correctly and does what it's supposed to do (not much). I can look into my Memfault-related files to find the issue.
+
+I'm going to hardcode the hardware version instead of trying to get it from `chip_info`, since I'm suspicious of my C.
+
+After removing that, the device is stable! I just don't know C.

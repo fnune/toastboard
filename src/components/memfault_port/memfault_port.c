@@ -4,7 +4,6 @@
 
 #include <stdio.h>
 
-#include "esp_system.h"
 #include "memfault/esp8266_port/core.h"
 
 sMfltHttpClientConfig g_mflt_http_client_config = {
@@ -14,9 +13,6 @@ sMfltHttpClientConfig g_mflt_http_client_config = {
 static char s_fw_version[32];
 
 void memfault_platform_get_device_info(sMemfaultDeviceInfo *info) {
-  esp_chip_info_t chip_info;
-  esp_chip_info(&chip_info);
-
   if (s_fw_version[0] == 0) {
     // initialize version
     char build_id[7];
@@ -30,7 +26,7 @@ void memfault_platform_get_device_info(sMemfaultDeviceInfo *info) {
     .device_serial = "the-one-and-only",
     .software_type = "toastboard-firmware",
     .software_version = s_fw_version,
-    .hardware_version = chip_info.revision,
+    .hardware_version = "ESP8266EX_CH340C",
   };
 }
 
