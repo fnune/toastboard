@@ -163,10 +163,42 @@ static void initialise_wifi(void *arg)
     ESP_ERROR_CHECK(esp_wifi_start());
 }
 
+eMemfaultRebootReason get_memfault_reset_reason(void)
+{
+    const esp_reset_reason_t reason = esp_reset_reason();
+    switch (reason) {
+        /* Reset after exiting deep sleep mode. */
+        case ESP_RST_DEEPSLEEP: return kMfltRebootReason_DeepSleep;
+        /* Reset due to power-on event. */
+        case ESP_RST_POWERON: return kMfltRebootReason_PowerOnReset;
+        /* Software reset via esp_restart. */
+        case ESP_RST_SW: return kMfltRebootReason_SoftwareReset;
+        /* Reset over SDIO. */
+        case ESP_RST_SDIO: return kMfltRebootReason_UserReset;
+        /* Brownout reset (software or hardware) */
+        case ESP_RST_BROWNOUT: return kMfltRebootReason_BrownOutReset;
+
+        /* Software reset due to exception/panic. */
+        case ESP_RST_PANIC: return kMfltRebootReason_UnknownError;
+
+        /* Reset (software or hardware) due to interrupt watchdog. */
+        case ESP_RST_INT_WDT: return kMfltRebootReason_HardwareWatchdog;
+        /* Reset due to task watchdog. */
+        case ESP_RST_TASK_WDT: return kMfltRebootReason_SoftwareWatchdog;
+        /* Reset due to other watchdogs. */
+        case ESP_RST_WDT: return kMfltRebootReason_SoftwareWatchdog;
+
+        /* Reset reason can not be determined. */
+        case ESP_RST_UNKNOWN: return kMfltRebootReason_Unknown;
+
+        default: return kMfltRebootReason_Unknown;
+    }
+}
+
 static void initialise_reboot_tracking(void) {
     const sResetBootupInfo reset_reason = {
        .reset_reason_reg = RTC_RESET_HW_CAUSE_REG,
-       .reset_reason = kMfltRebootReason_Unknown,
+       .reset_reason = get_memfault_reset_reason(),
     };
 
     memfault_reboot_tracking_boot(s_reboot_tracking, &reset_reason);

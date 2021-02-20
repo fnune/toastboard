@@ -535,3 +535,5 @@ error: 'RTC_RESET_HW_CAUSE_REG' undeclared
 Nope! However, I found that `RTC_RESET_HW_CAUSE_REG` points to a register `RTC_STATE1`, which I can access if I `#include "esp8266/rtc_register.h"`. This feels really hacky, but the code now compiles!
 
 Reboot reasons still show up as `Unspecified` and `Unexpected Reset`. Time to continue with the integration: mapping `esp_reset_reason_t` to `MfltResetReason` and passing it to the Memfault SDK.
+
+I built the mapper and passed it to `memfault_reboot_tracking_boot`, and everything compiles just fine, but the reboots in the app are still `Unspecified`. There's more integration steps to take, so I probably need to continue.
