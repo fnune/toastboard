@@ -270,7 +270,6 @@ After solving that by creating `src/main/include/memfault_platform_config.h`, th
 ```
 
 I got a bunch of compiler errors because I was on the `master` branch of the SDK and the Memfault integration supports only v3.3. The changes from `master` to v3.3 are significant in the HTTP server example, so I'm updating my application code.
-
 The next compiler error was a missing header file `esp_console.h` expected in `memfault_cli.c`. I could solve it by adding this to `src/sdkconfig`:
 
 ```
@@ -377,3 +376,18 @@ My device now exists on Memfault!
 ```
 the-one-and-only	1.0.0+4bb166	ESP8266EX_CH340C	a minute ago
 ```
+
+### The ESP-IDF console
+
+The Memfault docs mention a `crash` CLI command. I'm not sure what this is. I tried to find some information about this, thinking it's related to the `CONFIG_USING_ESP_CONSOLE=y` flag I passed in for compilation. The ESP8266 documentation doesn't mention the `console` component or the `crash` CLI command.
+
+ESP-IDF documentation mentions this:
+
+> ESP-IDF provides console component, which includes building blocks needed to develop an interactive console over serial port.
+
+I guess I'm supposed to build the interactivity into a new target? Maybe I'm supposed to test with the `console` example provided with the RTOS.
+
+I'm blocked at this step because the next steps depend on this: the crash data I could get from the `crash` CLI would be uploaded with the `memfault` CLI, and then the web application would warn me there's a missing symbols file for the data, and I could then upload the symbols file and get issues from it.
+
+I guess I need to find a way around the problem if I can't find out what this `crash` CLI command is.
+
