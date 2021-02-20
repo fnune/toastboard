@@ -237,6 +237,52 @@ minicom -p /dev/pts/4
 
 Type some stuff... and it appears on my newest terminal! Cool! Trying to type on `/dev/pts/4` produces the same characters on `/dev/pts/3`, but some get dropped. I'm curious to find out why, but let's get back to the main course.
 
+### Running a recurring task with ESP8266_RTOS_SDK/FreeRTOS
+
+Documentation on the ESP8266_RTOS_SDK does not feature any information about task creation. I guess this is because the underlying RTOS is FreeRTOS, so I'm going to try to find documentation for that.
+
+Documentation link: https://www.freertos.org/a00125.html
+
+Apparently I can create tasks with `xTaskCreate` or `xTaskCreateStatic`. If I want to use `xTaskCreateStatic`, I need to provide my own memory, so I need to pass more parameters, but I can allocate this memory at compile time. I'm going to go with the simpler `xTaskCreate`, which allocates from [the FreeRTOS heap](https://www.freertos.org/a00111.html).
+
+The most important argument to `xTaskCreate` is the task function I want to run:
+
+> Tasks are normally implemented as an infinite loop, and must never attempt to return or exit from their implementing function. Tasks can however delete themselves.
+
+Another interesting argument is `usStackDepth`. It's in words, and the docs say a word is 32 bits in an ESP8266EX. One choice would be to find out the minimum stack size required for a task in FreeRTOS, but I researched a bit and found out that `memfault_platform_http_client_post_data` needs a stack of 192 bytes, or 48 words of an ESP8266EX. [Read below](#finding-out-the-stack-size-needed-by-a-function) for details.
+
+To create a task that executes periodically, I just need to make it an infinite loop that calls `vTaskDelay` in it or `vTaskDelayUntil`. I'm going for the simpler `vTaskDelay`.
+
+#### Finding out the stack size needed by a function
+
+I found this interesting article: [GNU Static Stack Usage Analysis](https://mcuoneclipse.com/2015/08/21/gnu-static-stack-usage-analysis/) by [Erich Styger](https://mcuoneclipse.com/author/mcuoneclipse/). I can pass `-fstack-usage` to `gcc` and get a nice `.su` file that gives me the stack usage of each function in bytes.
+
+I found out I can pass append to `CFLAGS` for specific components, so I did so in `esp8266_sdk/memfault/component.mk`, and then found this file `memfault/memfault_platform_http_client.su`:
+
+```
+memfault_platform_http_client.c:178:5:memfault_platform_http_client_post_data	192	static
+```
+
+That's it! 192 bytes divided by my word size of 4 is exactly 48. I'll use 48 as a stack size for my task and eventually test to see if I can get by with less (I doubt it).
+
+#### Finding out the size of a word manually in C
+
+I remember in Rust this would be the size of `usize`. I guess in C I can go `sizeof(some_type)` to get this.
+
+After some Googling, I found `size_t`, which varies depending on the address size of the processor, and is the type returned by `sizeof`. So let's try `sizeof(size_t)`.
+
+```
+ESP_LOGI(TAG, "Size of a word is %u bytes!", sizeof(size_t));
+```
+
+And then in `make monitor`:
+
+```
+I (532) TOASTBOARD: Size of a word is 4 bytes!
+```
+
+Four bytes are 32 bits. Thanks Toastboard!
+
 ## The Memfault SDK
 
 Documentation link: https://docs.memfault.com/docs/embedded/esp8266-rtos-sdk-guide/
