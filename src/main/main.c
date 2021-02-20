@@ -186,7 +186,7 @@ eMemfaultRebootReason get_memfault_reset_reason(void)
         /* Reset due to task watchdog. */
         case ESP_RST_TASK_WDT: return kMfltRebootReason_SoftwareWatchdog;
         /* Reset due to other watchdogs. */
-        case ESP_RST_WDT: return kMfltRebootReason_SoftwareWatchdog;
+        case ESP_RST_WDT: return kMfltRebootReason_HardwareWatchdog;
 
         /* Reset reason can not be determined. */
         case ESP_RST_UNKNOWN: return kMfltRebootReason_Unknown;
@@ -202,6 +202,10 @@ static void initialise_reboot_tracking(void) {
     };
 
     memfault_reboot_tracking_boot(s_reboot_tracking, &reset_reason);
+
+    static uint8_t s_event_storage[100];
+    const sMemfaultEventStorageImpl *evt_storage = memfault_events_storage_boot(s_event_storage, sizeof(s_event_storage));
+    memfault_reboot_tracking_collect_reset_info(evt_storage);
 }
 
 void app_main()

@@ -537,3 +537,26 @@ Nope! However, I found that `RTC_RESET_HW_CAUSE_REG` points to a register `RTC_S
 Reboot reasons still show up as `Unspecified` and `Unexpected Reset`. Time to continue with the integration: mapping `esp_reset_reason_t` to `MfltResetReason` and passing it to the Memfault SDK.
 
 I built the mapper and passed it to `memfault_reboot_tracking_boot`, and everything compiles just fine, but the reboots in the app are still `Unspecified`. There's more integration steps to take, so I probably need to continue.
+
+I needed to dedicate some storage space for events and pass it to Memfault. Once that was done, I tortured the little thing once more with the `GET /crash` endpoint, and voila! There's a reason for my reboot on the Memfault application: `Software Watchdog`.
+
+This is a bit weird because the logs from `make monitor` show this:
+
+```
+I (503) mflt: ESP Reset Cause 0x7
+I (509) mflt: Reset Causes:
+I (514) mflt:  Hardware Watchdog
+```
+
+Maybe I got the mappings wrong!
+
+```
+/* Reset (software or hardware) due to interrupt watchdog. */
+case ESP_RST_INT_WDT: return kMfltRebootReason_HardwareWatchdog;
+/* Reset due to task watchdog. */
+case ESP_RST_TASK_WDT: return kMfltRebootReason_SoftwareWatchdog;
+/* Reset due to other watchdogs. */
+case ESP_RST_WDT: return kMfltRebootReason_SoftwareWatchdog;
+```
+
+Reset cause `0x7` corresponds to "other watchdogs", so I'm going to map that to `HardwareWatchdog` instead, since that's what the logs say. The `Hardware Watchdog` log from the Memfault SDK was there long before I added my mapping, so that suggests to me that they knew the reset reason all along. Why did I have to implement the mapping, then?
