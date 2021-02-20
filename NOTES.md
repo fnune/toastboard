@@ -329,7 +329,7 @@ The [ESP8266_RTOS_SDK documentation on partition tables](https://docs.espressif.
 
 I'm going to look for a way to do (2) in `make menuconfig`.
 
-The Memfault-specific configuration has an option "Enable saving a coredump to flash storage (OTA slot)". The other cohice is "User defined coredump storage region". I guess I could pick the second, but there's a default partition table that includes an OTA slot from the SDK, so I'm going to use that instead of the NVS partition.
+The Memfault-specific configuration has an option "Enable saving a coredump to flash storage (OTA slot)". The other choice is "User defined coredump storage region". I guess I could pick the second, but there's a default partition table that includes an OTA slot from the SDK, so I'm going to use that instead of the NVS partition.
 
 The configuration changed like so:
 
@@ -360,7 +360,7 @@ After removing that, the device is stable! I just don't know C.
 
 ### No data
 
-As I don't know how to set up a periodic task on FreeRTOS, I didn't add the `   memfault_esp_port_http_client_post_data()` line.
+As I don't know how to set up a periodic task on FreeRTOS, I didn't add the `memfault_esp_port_http_client_post_data()` line.
 
 My device exposes an HTTP server, so I decided to create a `GET /upload` route that will upload anything saved up to Memfault.
 
