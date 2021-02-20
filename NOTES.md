@@ -498,6 +498,8 @@ Let's try crashing the same away again to test issue deduplication. While my dev
 1. Why does it take so long for it to crash? I'd have guessed the timeout is shorter. Although it's an infinite loop, shouldn't it still be cancelable by some interrupt or whatever mechanism the RTOS has?
 2. Why is it showing up as a `Hard Fault` instead of a `Watchdog` issue? Wasn't the device restarted by the watchdog?
 
+Looking around in `make menuconfig`, I found the answer to (1): `Task Watchdog timeout period (seconds) (26.2144s)` under `ESP8266-specific`. I was pretty close with my 30 seconds guess!
+
 I think I can answer (2): the issue is a `Hard Fault`. The reboot event should be have the watchdog as a cause. However, it shows up as `Unspecified`. I guess I have something else to integrate.
 
 Issue deduplication seems to be working fine. Here's what the Queue Status widget shows:
@@ -508,3 +510,28 @@ a few seconds ago	Attached to Issue #38075
 ```
 
 Both were attached to issue `38075`.
+
+### Integrating reboot reasons
+
+Documentation link: https://docs.memfault.com/docs/embedded/reboot-reason-tracking
+
+I guess my reboot is showing up as having an `Unspecified` reason because I haven't completed integration. Let's continue with that.
+
+The guide mentions I should `#include "memfault/core/reboot_tracking.h"`, but I confirmed that's already included with `"memfault/components.h"`.
+
+There are two things I need to figure out from my chip and use in the initialization code:
+
+1. A pointer to the reboot reason register.
+2. Additional information about the reboot reason, mapped to a `MfltResetReason`.
+
+As for (2), the ESP8266_RTOS_SDK documentation points to a function [`esp_reset_reason`](https://docs.espressif.com/projects/esp8266-rtos-sdk/en/release-v3.3/api-reference/system/system.html?highlight=reset#_CPPv416esp_reset_reasonv) that returns a value of type [`esp_reset_reason_t`](https://docs.espressif.com/projects/esp8266-rtos-sdk/en/release-v3.3/api-reference/system/system.html?highlight=reset#_CPPv418esp_reset_reason_t). I need to figure out how to map from `esp_reset_reason_t` to `MfltResetReason`.
+
+As for (1), I can't find information in the documentation indicating how to access that register. There's only the functions described above. Looking at  the RTOS source code, I found this: `RTC_RESET_HW_CAUSE_REG`. I'm wondering if that's defined. To find that out, I'm going to try to compile with that and `kMfltRebootReason_Unknown` for now.
+
+```
+error: 'RTC_RESET_HW_CAUSE_REG' undeclared
+```
+
+Nope! However, I found that `RTC_RESET_HW_CAUSE_REG` points to a register `RTC_STATE1`, which I can access if I `#include "esp8266/rtc_register.h"`. This feels really hacky, but the code now compiles!
+
+Reboot reasons still show up as `Unspecified` and `Unexpected Reset`. Time to continue with the integration: mapping `esp_reset_reason_t` to `MfltResetReason` and passing it to the Memfault SDK.

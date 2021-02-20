@@ -16,8 +16,13 @@
 
 #include <esp_http_server.h>
 
+#include "esp8266/rtc_register.h"
 #include "memfault/components.h"
 #include "memfault/esp8266_port/http_client.h"
+#include "memfault/core/reboot_tracking.h"
+
+// An opaque storage area used by the Memfault SDK to track reboot information.
+static uint8_t s_reboot_tracking[MEMFAULT_REBOOT_TRACKING_REGION_SIZE];
 
 /* A simple example that demonstrates how to create GET and POST
  * handlers for the web server.
@@ -29,6 +34,9 @@
 */
 #define EXAMPLE_WIFI_SSID CONFIG_WIFI_SSID
 #define EXAMPLE_WIFI_PASS CONFIG_WIFI_PASSWORD
+
+// From components/esp8266/source/reset_reason.c
+#define RTC_RESET_HW_CAUSE_REG RTC_STATE1
 
 static const char *TAG="TOASTBOARD";
 
@@ -155,9 +163,19 @@ static void initialise_wifi(void *arg)
     ESP_ERROR_CHECK(esp_wifi_start());
 }
 
+static void initialise_reboot_tracking(void) {
+    const sResetBootupInfo reset_reason = {
+       .reset_reason_reg = RTC_RESET_HW_CAUSE_REG,
+       .reset_reason = kMfltRebootReason_Unknown,
+    };
+
+    memfault_reboot_tracking_boot(s_reboot_tracking, &reset_reason);
+}
+
 void app_main()
 {
     memfault_platform_boot();
+    initialise_reboot_tracking();
 
     static httpd_handle_t server = NULL;
     ESP_ERROR_CHECK(nvs_flash_init());
