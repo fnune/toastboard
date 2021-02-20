@@ -144,6 +144,34 @@ static esp_err_t event_handler(void *ctx, system_event_t *event)
     return ESP_OK;
 }
 
+
+void task_upload_memfault_data( void * pvParameters )
+{
+    const TickType_t delayMs = 10 * 60 * 1000;
+    const TickType_t delayTicks = delayMs / portTICK_PERIOD_MS;
+    for( ;; )
+    {
+        memfault_esp_port_http_client_post_data();
+        vTaskDelay(delayTicks);
+    }
+}
+
+// See NOTES.md under "Finding out the stack size needed by a function"
+const size_t UPLOAD_MEMFAULT_DATA_STACK_SIZE_WORDS = 48;
+
+static void initialise_memfault_upload_task(void) {
+    TaskHandle_t handle = NULL;
+    xTaskCreate(
+        task_upload_memfault_data,
+        "task_upload_memfault_data",
+        UPLOAD_MEMFAULT_DATA_STACK_SIZE_WORDS,
+        ( void * ) NULL,
+        tskIDLE_PRIORITY,
+        &handle
+    );
+}
+
+
 static void initialise_wifi(void *arg)
 {
     tcpip_adapter_init();
@@ -213,6 +241,8 @@ void app_main()
 {
     memfault_platform_boot();
     initialise_reboot_tracking();
+    // This causes the current crash loop!
+    // initialise_memfault_upload_task();
 
     static httpd_handle_t server = NULL;
     ESP_ERROR_CHECK(nvs_flash_init());

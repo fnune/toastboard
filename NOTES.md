@@ -253,6 +253,8 @@ Another interesting argument is `usStackDepth`. It's in words, and the docs say 
 
 To create a task that executes periodically, I just need to make it an infinite loop that calls `vTaskDelay` in it or `vTaskDelayUntil`. I'm going for the simpler `vTaskDelay`.
 
+After creating the task, I get an crash loop due to a stack overflow on my new `task_upload_memfault_data`. Is my stack size not big enough?
+
 #### Finding out the stack size needed by a function
 
 I found this interesting article: [GNU Static Stack Usage Analysis](https://mcuoneclipse.com/2015/08/21/gnu-static-stack-usage-analysis/) by [Erich Styger](https://mcuoneclipse.com/author/mcuoneclipse/). I can pass `-fstack-usage` to `gcc` and get a nice `.su` file that gives me the stack usage of each function in bytes.
