@@ -391,3 +391,120 @@ I'm blocked at this step because the next steps depend on this: the crash data I
 
 I guess I need to find a way around the problem if I can't find out what this `crash` CLI command is.
 
+### Trying to force a crash by flashing buggy code
+
+Let's try adding an infinite loop in a `GET` request handler under `/crash`.
+
+```
+esp_err_t crash_get_handler(httpd_req_t *req)
+{
+    while (true) {
+      // ...
+    };
+
+    const char* resp_str = (const char*) req->user_ctx;
+    httpd_resp_send(req, resp_str, strlen(resp_str));
+
+    return ESP_OK;
+}
+
+httpd_uri_t crash = {
+    .uri       = "/crash",
+    .method    = HTTP_GET,
+    .handler   = crash_get_handler,
+    .user_ctx  = "The application should crash before this shows up"
+};
+```
+
+Calling `/crash` left my browser loading for about 30 (!) seconds before the device crashed. Here's the full output of the crash, from `make monitor`:
+
+```
+Saving Memfault Coredump!
+Erasing Coredump Storage: 0x0 983040
+coredump erase complete
+Task watchdog got triggered.
+
+Guru Meditation Error: Core  0 panic'ed (IllegalInstruction). Exception was unhandled.
+Core 0 register dump:
+PC      : 0x4026f3d4  PS      : 0x00000030  A0      : 0x40247d9c  A1      : 0x3fff57c0
+0x4026f3d4: crash_get_handler at /home/fausto/Development/toastboard/src/main/main.c:54
+
+0x40247d9c: httpd_uri at /home/fausto/.esp/ESP8266_RTOS_SDK/components/esp_http_server/src/httpd_uri.c:218
+
+A2      : 0x40107cec  A3      : 0x4026f3d4  A4      : 0x00000002  A5      : 0x00000004
+0x4026f3d4: crash_get_handler at /home/fausto/Development/toastboard/src/main/main.c:54
+
+A6      : 0x00000073  A7      : 0x00000001  A8      : 0x00000001  A9      : 0x00000068
+A10     : 0x00000068  A11     : 0x80808080  A12     : 0x40107c9c  A13     : 0x40107cec
+A14     : 0x40107c9c  A15     : 0x40107cec  SAR     : 0x00000018  EXCCAUSE: 0x00000000
+
+Backtrace: 0x4026f3d4:0x3fff57c0 0x40247d9c:0x3fff57c0 0x4024853b:0x3fff57e0 0x402485ed:0x3fff5860 0x402475df:0x3fff5880 0x40246f58:0x3fff5890 0x40246fc4:0x3fff58b0
+0x4026f3d4: crash_get_handler at /home/fausto/Development/toastboard/src/main/main.c:54
+
+0x40247d9c: httpd_uri at /home/fausto/.esp/ESP8266_RTOS_SDK/components/esp_http_server/src/httpd_uri.c:218
+
+0x4024853b: httpd_parse_req at /home/fausto/.esp/ESP8266_RTOS_SDK/components/esp_http_server/src/httpd_parse.c:527
+
+0x402485ed: httpd_req_new at /home/fausto/.esp/ESP8266_RTOS_SDK/components/esp_http_server/src/httpd_parse.c:594
+
+0x402475df: httpd_sess_process at /home/fausto/.esp/ESP8266_RTOS_SDK/components/esp_http_server/src/httpd_sess.c:327
+
+0x40246f58: httpd_server at /home/fausto/.esp/ESP8266_RTOS_SDK/components/esp_http_server/src/httpd_main.c:113
+
+0x40246fc4: httpd_thread at /home/fausto/.esp/ESP8266_RTOS_SDK/components/esp_http_server/src/httpd_main.c:113
+
+@R%dPMT%w@Y)Q
+OT5V'I
+T       )dE     5Y
+NZA     I^NTR
+@\Y!NZA I^{YP1g@\@Y
+[)!E   pL@LYYX)IIPKVqRA I       YЛ     pL@PWK   V       ZQHYYV[)!E     pL@Y^ZYY
+                         1eʉE  xO@Y     J5)aEEAJA%Y     J)Q
+AEaE   xL@Y     J-I
+%ʉE    xO@YZAFPYM)!E   `M@YI9V5ԻT)dVEEAJAH%Y=eZ)R
+                                                 E
+                                                  E    h%Y-JP-G
+
+                                                               E       h%Y1iGQP)PNP-E  h%Y--HPPG
+-AKRMYV@Q                                                                                       YAJAH^-G-HPP-YAJAH^w\PRZANPYEEAJAHq
+         E     h)YVYP1DT
+                        PTg
+                           TWp)ʉE      hM)YVY1DT
+                                                P%=DT
+                                                     T5қ
+                                                        @)ʉE   h)YVYRP#PR
+5P@H)IJ)!E     hN)YVRP%=DT
+                          Tg
+)IJ)!E h                    P!)IJ)!E   h)YVYPRPT5eHP@
+        %YYP-^1qQHT-TRYI (411) system_api: Base MAC address is not set, read default base MAC address from EFUSE
+```
+
+It looks like the system gave me the backtrace and the exact location of my crash: the body of the `crash_get_handler`. What a surprise.
+
+On the Memfault application nothing's showing up yet. I guess it's because my device doesn't upload data unless I tell it to, using the `GET /upload` route.
+
+After I upload the data in the device, I get this in the issues view:
+
+```
+Unprocessed traces exist due to missing symbol file(s):
+
+Upload 1.0.0+5a05af (toastboard-firmware)
+```
+
+Cool! Uploading that now. I'm such a noob that I don't even know what I'm supposed to upload. I think it's `build/toastboard.elf`, though.
+
+Let's try crashing the same away again to test issue deduplication. While my device takes some time to decide to crash through the infinite loop, I'm thinking of two questions:
+
+1. Why does it take so long for it to crash? I'd have guessed the timeout is shorter. Although it's an infinite loop, shouldn't it still be cancelable by some interrupt or whatever mechanism the RTOS has?
+2. Why is it showing up as a `Hard Fault` instead of a `Watchdog` issue? Wasn't the device restarted by the watchdog?
+
+I think I can answer (2): the issue is a `Hard Fault`. The reboot event should be have the watchdog as a cause. However, it shows up as `Unspecified`. I guess I have something else to integrate.
+
+Issue deduplication seems to be working fine. Here's what the Queue Status widget shows:
+
+```
+a few seconds ago	Attached to Issue #38075
+26 minutes ago	Attached to Issue #38075
+```
+
+Both were attached to issue `38075`.

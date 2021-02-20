@@ -50,6 +50,25 @@ httpd_uri_t upload = {
     .user_ctx  = "Uploading stuff to Memfault!"
 };
 
+esp_err_t crash_get_handler(httpd_req_t *req)
+{
+    while (true) {
+      // ...
+    };
+
+    const char* resp_str = (const char*) req->user_ctx;
+    httpd_resp_send(req, resp_str, strlen(resp_str));
+
+    return ESP_OK;
+}
+
+httpd_uri_t crash = {
+    .uri       = "/crash",
+    .method    = HTTP_GET,
+    .handler   = crash_get_handler,
+    .user_ctx  = "The application should crash before this shows up"
+};
+
 httpd_handle_t start_webserver(void)
 {
     httpd_handle_t server = NULL;
@@ -61,6 +80,7 @@ httpd_handle_t start_webserver(void)
         // Set URI handlers
         ESP_LOGI(TAG, "Registering URI handlers");
         httpd_register_uri_handler(server, &upload);
+        httpd_register_uri_handler(server, &crash);
         return server;
     }
 
