@@ -273,6 +273,14 @@ I started by trying to allocate a stack of 48 words for my `task_upload_memfault
 
 Could this be due to the fact that I measured stack usage for `memfault_platform_http_client_post_data` and not for my task's function `task_upload_memfault_data`? Let's build with `-fstack-usage` again, this time scouting for my task function instead. The number reported for `memfault_platform_http_client_post_data` was 192 bytes.
 
+The output contains this:
+
+```
+main.c:148:6:task_upload_memfault_data	16	static
+```
+
+Eew! 16 is a lot less than 192. It seems like this isn't going all the way down the call stack to calculate stack usage. Maybe I'm missing some other flag?
+
 #### Finding out the size of a word manually in C
 
 I remember in Rust this would be the size of `usize`. I guess in C I can go `sizeof(some_type)` to get this.
