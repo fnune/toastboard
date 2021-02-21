@@ -147,11 +147,21 @@ static esp_err_t event_handler(void *ctx, system_event_t *event)
 
 void task_upload_memfault_data( void * pvParameters )
 {
+    UBaseType_t uxHighWaterMark;
+
     const TickType_t delayTicks = 10 * 1000 / portTICK_PERIOD_MS;
+
+    uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL);
+
+    ESP_LOGD(TAG, "Water mark at task entry: %lu", uxHighWaterMark);
+
     while (true)
     {
         memfault_esp_port_http_client_post_data();
         vTaskDelay(delayTicks);
+
+        uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL);
+        ESP_LOGD(TAG, "Water mark at task exit: %lu", uxHighWaterMark);
     }
 }
 
