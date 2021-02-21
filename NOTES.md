@@ -267,6 +267,12 @@ memfault_platform_http_client.c:178:5:memfault_platform_http_client_post_data	19
 
 That's it! 192 bytes divided by my word size of 4 is exactly 48. I'll use 48 as a stack size for my task and eventually test to see if I can get by with less (I doubt it).
 
+#### The stack size I calculated wasn't enough
+
+I started by trying to allocate a stack of 48 words for my `task_upload_memfault_data` function, but that crashed my device due to bad allocations. I bluntly tried to increase it gradually until it worked, and it did! At 4096 words. I was off by a lot.
+
+Could this be due to the fact that I measured stack usage for `memfault_platform_http_client_post_data` and not for my task's function `task_upload_memfault_data`? Let's build with `-fstack-usage` again, this time scouting for my task function instead. The number reported for `memfault_platform_http_client_post_data` was 192 bytes.
+
 #### Finding out the size of a word manually in C
 
 I remember in Rust this would be the size of `usize`. I guess in C I can go `sizeof(some_type)` to get this.

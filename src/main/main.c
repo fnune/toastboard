@@ -147,9 +147,8 @@ static esp_err_t event_handler(void *ctx, system_event_t *event)
 
 void task_upload_memfault_data( void * pvParameters )
 {
-    const TickType_t delayMs = 10 * 60 * 1000;
-    const TickType_t delayTicks = delayMs / portTICK_PERIOD_MS;
-    for( ;; )
+    const TickType_t delayTicks = 10 * 1000 / portTICK_PERIOD_MS;
+    while (true)
     {
         memfault_esp_port_http_client_post_data();
         vTaskDelay(delayTicks);
@@ -157,17 +156,16 @@ void task_upload_memfault_data( void * pvParameters )
 }
 
 // See NOTES.md under "Finding out the stack size needed by a function"
-const size_t UPLOAD_MEMFAULT_DATA_STACK_SIZE_WORDS = 48;
+const size_t UPLOAD_MEMFAULT_DATA_STACK_SIZE_WORDS = 4096;
 
 static void initialise_memfault_upload_task(void) {
-    TaskHandle_t handle = NULL;
     xTaskCreate(
         task_upload_memfault_data,
         "task_upload_memfault_data",
         UPLOAD_MEMFAULT_DATA_STACK_SIZE_WORDS,
         ( void * ) NULL,
         tskIDLE_PRIORITY,
-        &handle
+        NULL
     );
 }
 
@@ -186,7 +184,6 @@ static void initialise_wifi(void *arg)
         },
     };
     ESP_LOGI(TAG, "Setting WiFi configuration SSID %s...", wifi_config.sta.ssid);
-    ESP_LOGI(TAG, "Size of a word is %u bytes!", sizeof(size_t));
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_start());
@@ -239,12 +236,14 @@ static void initialise_reboot_tracking(void) {
 
 void app_main()
 {
+    ESP_LOGD(TAG, "Size of a word is %u bytes!", sizeof(size_t));
+
     memfault_platform_boot();
     initialise_reboot_tracking();
-    // This causes the current crash loop!
-    // initialise_memfault_upload_task();
 
     static httpd_handle_t server = NULL;
     ESP_ERROR_CHECK(nvs_flash_init());
     initialise_wifi(&server);
+
+    initialise_memfault_upload_task();
 }
